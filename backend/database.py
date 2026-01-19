@@ -2,15 +2,23 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 
-# Default to SQLite for local development if DATABASE_URL is missing
-# In production, Railway will provide a PostgreSQL URL
+# Default to a placeholder for local dev, but prioritize the environment variable
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/ip_deal_db")
 
-# Ensure the URL uses the asyncpg driver
-if DATABASE_URL.startswith("postgresql://"):
+# Fix for Railway/Heroku style URLs (postgres:// -> postgresql+asyncpg://)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+# Only create the engine if we have a valid-looking URL
+engine = create_async_engine(
+    DATABASE_URL, 
+    echo=False,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20
+)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
@@ -23,13 +31,13 @@ class Base(DeclarativeBase):
 
 async def init_db():
     async with engine.begin() as conn:
+        # This will create tables if they don't exist
         await conn.run_sync(Base.metadata.create_all)
 
 async def get_db():
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise

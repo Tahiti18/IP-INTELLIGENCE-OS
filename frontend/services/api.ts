@@ -4,17 +4,19 @@
  */
 
 const getBaseUrl = (): string => {
-  // 1. Manual override
+  // 1. LocalStorage Manual override (highest priority for debugging)
   if (typeof window !== 'undefined') {
     const override = localStorage.getItem('API_BASE_URL');
     if (override) return override;
   }
 
-  // 2. Environment Variables (check various common prefixes)
+  // 2. Production Environment Variables
+  // Note: import.meta.env is specifically for Vite environments
   const env: any = (window as any).process?.env || {};
   let viteEnv: any = {};
   try {
-    viteEnv = (import.meta as any).env || {};
+    // @ts-ignore
+    viteEnv = import.meta.env || {};
   } catch (e) {}
 
   const candidate = 
@@ -26,18 +28,18 @@ const getBaseUrl = (): string => {
 
   if (candidate) return candidate;
 
-  // 3. Smart Default: If we're on localhost but not on 8080, try 8080 as a fallback
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port !== '8080') {
+  // 3. Local Development Default
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
     return 'http://localhost:8080';
   }
 
-  // 4. Final Fallback
+  // 4. Fallback (assumes same origin, which is rarely true on Railway for separate services)
   return typeof window !== 'undefined' ? window.location.origin : '';
 };
 
 const BASE_URL = getBaseUrl().replace(/\/$/, '');
 
-// Mock data for seamless preview and "Demo Mode"
+// Mock data used ONLY if the health check fails or returns 'mock' version
 const MOCK_ASSETS = [
   {
     id: 1,
@@ -72,14 +74,10 @@ const MOCK_ASSETS = [
 ];
 
 export const api = {
-  /**
-   * Core fetch wrapper with timeout, error handling, and mock fallback.
-   * Guaranteed to return mockData if provided, preventing upstream catch blocks from firing on network errors.
-   */
   async fetchWithFallback<T>(path: string, options?: RequestInit, mockData?: T): Promise<T> {
     const url = `${BASE_URL}${path}`;
     const controller = new AbortController();
-    const timeout = path === '/health' ? 2000 : 8000;
+    const timeout = path === '/health' ? 2000 : 15000;
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
@@ -103,9 +101,8 @@ export const api = {
     } catch (error: any) {
       clearTimeout(timeoutId);
       
-      // If we have mock data, return it instead of throwing
       if (mockData !== undefined) {
-        console.info(`[API] Fallback for ${path}: ${error.message}`);
+        console.info(`[API] Engine Unreachable. Falling back to simulated data for ${path}`);
         return mockData;
       }
       
