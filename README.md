@@ -27,36 +27,35 @@ IP Deal Intelligence OS is a production-ready platform for detecting, enriching,
 └── README.md
 ```
 
-## Taking the System Live (Step-by-Step)
+## 🚀 Taking the System Live (The "Live Checklist")
 
-By default, the frontend runs in **Demo Mode** using mock data if it cannot find the backend. Follow these steps to achieve a **Live Engine** state:
+If your dashboard shows **"System Operating in Demo Mode"**, it means the Frontend cannot reach a working Backend Engine. Follow these steps on Railway to fix this:
 
-### 1. Provision Infrastructure (Railway)
-- **Database**: Add a "PostgreSQL" service to your project.
-- **Backend**:
-  - Point the source to the `/backend` directory.
-  - Railway will use the provided `Dockerfile` automatically.
-  - **Critical Environment Variable**: `DATABASE_URL`. Ensure it uses `postgresql+asyncpg://` as the prefix.
-- **Frontend**:
-  - Point the source to the root (Vite/React).
-  - **Environment Variable**: `VITE_API_URL` set to your Backend service's public URL.
+### 1. Provision the Database
+- Add a **PostgreSQL** service to your Railway project.
 
-### 2. Verify Connection
-- Once deployed, open the Frontend dashboard.
-- The top navigation should show a pulsing **Live** indicator.
-- The dashboard will show an emerald-green banner confirming the engine is connected to the PostgreSQL database.
+### 2. Deploy the Backend Engine
+- Create a new service from your GitHub repo.
+- **Root Directory**: In service settings, set this to `/backend`. Railway will automatically find the `Dockerfile` inside.
+- **Environment Variables**: 
+  - `DATABASE_URL`: Link this to your PostgreSQL service (`${{Postgres.DATABASE_URL}}`).
+- **Networking**: Generate a Public Domain (e.g., `https://api-engine.up.railway.app`).
+
+### 3. Configure the Frontend
+- Your existing frontend service needs to know where the API is.
+- **Environment Variables**:
+  - `VITE_API_URL`: Set this to the **Public Domain** of your Backend service created in Step 2.
+- **Critical**: You **MUST** redeploy the frontend after setting this variable. Vite embeds environment variables at build time.
+
+### 4. Verification
+- Once both are deployed, refresh your dashboard.
+- The top-right badge will turn **Emerald Green** and display **LIVE v1.0.0**.
+- The system will transition from "Simulated Dataset" to "Production Database".
 
 ## Technical Details
 - **Scoring Engine**: Evaluates assets based on IP version scarcity (IPv4 premium), block size routing efficiency (/24 aggregation), and RIR transfer complexity.
 - **Async Workflow**: Backend uses `asyncpg` for non-blocking DB I/O, supporting high-concurrency analysis tasks.
 - **Intelligence Enrichment**: Simulates WHOIS/ASN data ingestion (pluggable with commercial IPAM APIs).
-
-## Troubleshooting "Demo Mode"
-If the system stays in Demo Mode despite a backend deployment:
-1. Check the Browser Console for "Failed to fetch" errors.
-2. Verify the Backend Service has a Public Networking domain enabled.
-3. Ensure `VITE_API_URL` on the frontend does **not** have a trailing slash.
-4. Confirm the Backend logs show "Database initialized successfully".
 
 ---
 *Built for scale. Designed for intelligence.*
